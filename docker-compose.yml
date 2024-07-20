@@ -1,0 +1,73 @@
+services:
+
+  php-fpm:
+    build:
+      context: ./php-fpm
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - app-tier
+    volumes:
+      - ./source/stake:/var/www/html
+      - ./php-fpm/stake-worker.conf:/etc/supervisor/conf.d/stake-worker.conf
+      - ./php-fpm/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - app-tier
+    depends_on:
+      - php-fpm
+    volumes:
+      - ./source/stake:/var/www/html
+      - ./nginx/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
+      - ./certs:/etc/ssl/certs
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/snippets:/etc/nginx/snippets
+      - ./nginx/fastcgi_params:/etc/nginx/fastcgi_params
+      - ./nginx/fastcgi.conf:/etc/nginx/fastcgi.conf
+    ports:
+      - "80:80"
+      - "443:443"
+
+  redis:
+    image: bitnami/redis:7.2
+    networks:
+      - app-tier
+    restart: always
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      # - ALLOW_EMPTY_PASSWORD=yes
+      # - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+      - REDIS_PASSWORD=clxhst1q6000008jpd8013sot
+    ports:
+      - '6379:6379'
+    volumes:
+      - 'redis_data:/bitnami/redis/data'
+
+  mariadb:
+    image: mariadb:10-ubi
+    networks:
+      - app-tier
+    container_name: mariadb
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: clxh4cwtp000008jrf5hz5z6i
+      MARIADB_DATABASE: casino
+      MARIADB_USER: casino
+      MARIADB_PASSWORD: BnWtgN3rkc
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mariadb/data:/var/lib/mysql
+
+networks:
+  app-tier:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
