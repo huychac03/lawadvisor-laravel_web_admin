@@ -1,6 +1,5 @@
 FROM php:8.3-fpm
 
-# Install system dependencies
 RUN apt update && apt install -y \
         libfreetype6-dev \
         libjpeg62-turbo-dev \
@@ -16,18 +15,21 @@ RUN apt update && apt install -y \
 
 RUN pecl install --force redis
 
-RUN docker-php-ext-install -j5 pdo_mysql bcmath zip gmp ctype json ctype mbstring openssl pdo tokenizer xml exif gd zip
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg
 
-RUN docker-php-ext-enable pdo_mysql bcmath zip gmp redis ctype json ctype mbstring openssl pdo tokenizer xml exif gd zip
+RUN docker-php-ext-install -j$(nproc) pdo pdo_mysql bcmath zip gmp mbstring xml exif gd zip
 
-# Allow URL fopen
+RUN docker-php-ext-enable pdo pdo_mysql bcmath zip gmp redis mbstring xml exif gd zip
+
 RUN echo "allow_url_fopen=On" >> /usr/local/etc/php/php.ini
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-COPY composer.json composer.lock ./
-RUN composer install --no-scripts --no-autoloader
-COPY . .
-RUN composer dump-autoload --optimize
 
-# Set the CMD to start php-fpm
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+COPY composer.json composer.lock ./
+RUN composer update --no-scripts --no-autoloader
+COPY . .
+# RUN composer dump-autoload --optimize
+
 CMD ["php-fpm"]
